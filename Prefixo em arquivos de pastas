@@ -1,0 +1,53 @@
+Sub RenameFilesByReplacingPrefix()
+    Dim folderPath As String        ' Caminho da pasta onde os arquivos estão localizados
+    Dim file As Object              ' Variável para armazenar cada arquivo dentro da pasta
+    Dim fileSystem As Object        ' Variável para manipulação do sistema de arquivos
+    Dim newName As String           ' Novo nome gerado para o arquivo
+    Dim oldPrefix As String        ' Prefixo antigo que será substituído
+    Dim newPrefix As String        ' Novo prefixo que substituirá o antigo
+    
+    ' Especificando o caminho da pasta onde os arquivos estão localizados
+    folderPath = "C:\Users\sumit\Downloads\"
+    
+    ' Especificando o prefixo antigo que será substituído
+    oldPrefix = "Old_"
+    
+    ' Especificando o novo prefixo que substituirá o antigo
+    newPrefix = "New_"
+    
+    ' Tratamento de erros, caso algo dê errado no processo
+    On Error GoTo ErrorHandler
+    
+    ' Criando um objeto FileSystemObject para manipular o sistema de arquivos
+    Set fileSystem = CreateObject("Scripting.FileSystemObject")
+    
+    ' Verificando se a pasta especificada existe
+    If Not fileSystem.FolderExists(folderPath) Then
+        ' Se a pasta não existir, exibe uma mensagem de erro e sai do procedimento
+        MsgBox "Error: The specified folder does not exist.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Iniciando um loop para percorrer todos os arquivos na pasta
+    For Each file In fileSystem.GetFolder(folderPath).Files
+        ' Verificando se o arquivo começa com o prefixo antigo
+        If Left(fileSystem.GetFileName(file.Path), Len(oldPrefix)) = oldPrefix Then
+            ' Gerando o novo nome, substituindo o prefixo antigo pelo novo
+            newName = folderPath & newPrefix & Mid(fileSystem.GetFileName(file.Path), Len(oldPrefix) + 1)
+            
+            ' Renomeando o arquivo
+            Name file.Path As newName
+        End If
+    Next file
+    
+    ' Mensagem de sucesso ao finalizar o processo de renomeação
+    MsgBox "All files with the old prefix have been renamed successfully."
+    
+    ' Saindo do procedimento
+    Exit Sub
+    
+ErrorHandler:
+    ' Caso ocorra algum erro durante o processo, uma mensagem de erro será exibida
+    MsgBox "Couldn't Rename the File - " & Err.Description
+
+End Sub
