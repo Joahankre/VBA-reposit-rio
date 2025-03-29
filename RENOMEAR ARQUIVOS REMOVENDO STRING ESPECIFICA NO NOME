@@ -1,0 +1,33 @@
+# Caminho da pasta
+$folderPath = "C:\Users\PC\Desktop\Nova pasta"
+
+# Parte do nome que você quer remover
+$removeString = " - Copia"
+
+# Obter todos os arquivos da pasta
+$files = Get-ChildItem -Path $folderPath
+
+# Loop para renomear todos os arquivos
+foreach ($file in $files) {
+    # Exibir o nome do arquivo (com espaços e caracteres invisíveis)
+    Write-Host "Nome do arquivo: '$($file.Name)'"
+
+    # Remover espaços extras antes e depois do nome do arquivo
+    $trimmedFileName = $file.Name.Trim()
+
+    # Exibir o nome "limpo" do arquivo para depuração
+    Write-Host "Nome do arquivo sem espaços extras: '$trimmedFileName'"
+
+    # Verificar se o nome do arquivo contém a string a ser removida (case insensitive)
+    if ($trimmedFileName -like "*$removeString*") {
+        # Criar o novo nome do arquivo removendo o conjunto de caracteres desejado
+        $newName = $trimmedFileName -replace [regex]::Escape($removeString), ""  # Remove a string exata
+        $newFilePath = Join-Path -Path $folderPath -ChildPath $newName
+        
+        # Renomear o arquivo
+        Rename-Item -Path $file.FullName -NewName $newFilePath
+        Write-Host "Arquivo renomeado: $($file.Name) para $newName"
+    } else {
+        Write-Host "O arquivo NÃO contém a string '$removeString'."
+    }
+}
