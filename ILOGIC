@@ -1,0 +1,36 @@
+' Caminho da pasta onde os arquivos estão localizados
+Dim folderPath As String = "C:\Users\PC\Desktop\Nova pasta (4)"
+
+' Cadeia de caracteres antiga a ser substituída
+Dim oldString As String = "6987--"
+
+' Nova cadeia de caracteres para substituir a antiga
+Dim newString As String = "FJT-LFN-"
+
+' Verificando se a pasta existe
+If System.IO.Directory.Exists(folderPath) Then
+    ' Obtendo todos os arquivos da pasta
+    Dim files As String() = System.IO.Directory.GetFiles(folderPath)
+    
+    ' Loop para percorrer todos os arquivos na pasta
+    For Each file As String In files
+        ' Obtendo o nome do arquivo
+        Dim fileName As String = System.IO.Path.GetFileName(File)
+        
+        ' Verificando se o nome do arquivo contém a string a ser substituída
+        If fileName.Contains(oldString) Then
+            ' Criando o novo nome do arquivo substituindo a cadeia antiga pela nova
+            Dim newName As String = fileName.Replace(oldString, newString)
+            Dim newFilePath As String = System.IO.Path.Combine(folderPath, newName)
+            
+            ' Renomeando o arquivo
+            System.IO.File.Move(File, newFilePath)
+            
+            ' Exibindo mensagem de sucesso
+            MessageBox.Show("Arquivo renomeado: " & fileName & " para " & newName)
+        End If
+    Next
+Else
+    ' Caso a pasta não exista
+    MessageBox.Show("A pasta especificada não existe.")
+End If
