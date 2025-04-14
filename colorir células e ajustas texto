@@ -1,0 +1,58 @@
+Option Explicit
+
+Sub ColorirValoresRepetidos()
+    Dim rng As Range, cell As Range
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' Solicita a seleção do intervalo com uma caixa de diálogo
+    On Error Resume Next
+    Set rng = Application.InputBox( _
+        Title:="Colorir Valores Iguais", _
+        Prompt:="Selecione o intervalo com os valores:", _
+        Type:=8)
+    On Error GoTo 0
+    
+    If rng Is Nothing Then
+        MsgBox "Nenhuma seleção feita. Macro cancelada.", vbExclamation
+        Exit Sub
+    End If
+    
+    Dim i As Long
+    i = 0
+    
+    ' Limpa cores anteriores no intervalo
+    rng.Interior.ColorIndex = xlNone
+    
+    ' Percorre cada célula no intervalo
+    For Each cell In rng
+        If Not IsEmpty(cell.Value) And Not IsError(cell.Value) Then
+            Dim chave As String
+            chave = LimparTexto(cell.Value) ' Usa função personalizada
+            
+            If Not dict.exists(chave) Then
+                dict.Add chave, PastelColor(i)
+                i = i + 1
+            End If
+            
+            cell.Interior.Color = dict(chave)
+        End If
+    Next cell
+    
+    MsgBox "Coloração concluída! Foram aplicadas cores para " & dict.Count & " grupo(s) distinto(s).", vbInformation
+End Sub
+
+Function PastelColor(index As Long) As Long
+    Dim r As Long, g As Long, b As Long
+    r = 180 + ((index * 40) Mod 76)
+    g = 180 + ((index * 70) Mod 76)
+    b = 180 + ((index * 60) Mod 76)
+    PastelColor = RGB(r, g, b)
+End Function
+
+Function LimparTexto(valor As Variant) As String
+    Dim temp As String
+    temp = Trim(CStr(valor))                  ' Remove espaços nas bordas
+    temp = Application.WorksheetFunction.Trim(temp) ' Remove espaços duplicados no meio
+    LimparTexto = temp
+End Function
