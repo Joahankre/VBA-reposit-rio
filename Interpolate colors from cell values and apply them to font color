@@ -1,0 +1,112 @@
+Option Explicit
+Sub InterpolateFontColor()
+    Dim rng As Range, lowpointColor As Long, highpointColor As Long, midpointColor As Long
+    
+    'Get A Cell Address From The User to Get Number Format From
+    On Error Resume Next
+    Set rng = Application.InputBox( _
+        Title:="Interpolate Font Color in Cells", _
+        Prompt:="Select cell range to interpolate", _
+        Type:=8)
+    On Error GoTo 0
+    
+    'Exit if user cancelled
+    If rng Is Nothing Then Exit Sub
+    
+    Dim min As Double, max As Double, fraction As Double
+    min = Application.WorksheetFunction.min(rng.Value2)
+    max = Application.WorksheetFunction.max(rng.Value2)
+    
+    Dim crosses_zero As Boolean
+    If max > 0 And min < 0 Then crosses_zero = True
+    
+    Dim oldColor56 As Long
+    oldColor56 = ActiveWorkbook.Colors(56)
+    
+    Call MsgBox("Pick the color for the *lowest* value")
+    'Open the ColorPicker dialog box, applying the RGB color as the default
+    If Application.Dialogs(xlDialogEditColor).Show(56, 255, 0, 0) = True Then
+        'Store color picked by user into a variable
+        lowpointColor = ActiveWorkbook.Colors(56)
+    Else
+        'Exit if user cancelled
+        Exit Sub
+    End If
+    
+    Call MsgBox("Pick the color for the *highest* value")
+    If Application.Dialogs(xlDialogEditColor).Show(56, 0, IIf(crosses_zero, 128, 0), 0) = True Then
+        highpointColor = ActiveWorkbook.Colors(56)
+    Else
+        Exit Sub
+    End If
+    
+    If crosses_zero Then
+        Call MsgBox("Pick the color for the *midpoint* value")
+        If Application.Dialogs(xlDialogEditColor).Show(56, 0, 0, 0) = True Then
+            midpointColor = ActiveWorkbook.Colors(56)
+        Else
+            Exit Sub
+        End If
+    End If
+
+    'Restore old color 56
+    ActiveWorkbook.Colors(56) = oldColor56
+
+    On Error Resume Next
+    Dim cell As Range
+    For Each cell In rng
+        If WorksheetFunction.CountA(cell) = 0 Or _
+           (cell.HasFormula And InStr(UCase(cell.FormulaArray), "MEDIAN")) Then GoTo NextLoop
+           
+        If crosses_zero Then
+            If cell.Value2 > 0 Then
+                fraction = (cell.Value2 - 0) / (max - 0)
+                cell.Font.Color = Interpolate(midpointColor, highpointColor, fraction)
+            Else
+                fraction = (cell.Value2 - min) / (0 - min)
+                cell.Font.Color = Interpolate(lowpointColor, midpointColor, fraction)
+            End If
+        Else
+            fraction = (cell.Value2 - min) / (max - min) 'min-max scaling
+            cell.Font.Color = Interpolate(lowpointColor, highpointColor, fraction)
+        End If
+            
+        'fraction = WorksheetFunction.PercentRank(rng, cell) 'percentile scaling
+        Debug.Print _
+            'cell.AddressLocal & " " & _
+            'Round(cell.Value2, 2) & "/" & Round(min, 2) & "/" & Round(max, 2) & " ", _
+            'Round(fraction, 2), " " & RGBasString(cell.Font.Color)
+            
+NextLoop:
+    Next
+    
+End Sub
+
+Private Function Interpolate(ByVal color1 As Long, ByVal color2 As Long, ByVal fraction As Double) As Long
+    Dim r1 As Long, g1 As Long, b1 As Long
+    Dim r2 As Long, g2 As Long, b2 As Long
+    Dim r As Long, g As Long, b As Long
+    r1 = color1 Mod 256
+    g1 = (color1 \ 256) Mod 256
+    b1 = color1 \ 65536
+    
+    r2 = color2 Mod 256
+    g2 = (color2 \ 256) Mod 256
+    b2 = color2 \ 65536
+    
+    r = (r2 - r1) * fraction + r1
+    g = (g2 - g1) * fraction + g1
+    b = (b2 - b1) * fraction + b1
+    
+    Interpolate = RGB(r, g, b)
+    
+End Function
+
+Private Function RGBasString(ByVal RGB As Long) As String
+    Dim r As String, g As String, b As String
+    r = RGB Mod 256
+    g = (RGB \ 256) Mod 256
+    b = RGB \ 65536
+    
+    RGBasString = "(" & r & ", " & g & ", " & b & ")"
+End Function
