@@ -1,0 +1,27 @@
+Option Explicit
+
+Sub LimparEspacosEMaiusculas()
+    Dim rng As Range, cell As Range
+    
+    ' Caixa de diálogo para seleção do intervalo
+    On Error Resume Next
+    Set rng = Application.InputBox( _
+        Prompt:="Selecione o intervalo de células que deseja padronizar:", _
+        Title:="Limpar Espaços e Colocar em Maiúsculas", _
+        Type:=8)
+    On Error GoTo 0
+    
+    If rng Is Nothing Then
+        MsgBox "Nenhuma seleção feita. Macro cancelada.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Percorre cada célula e aplica a limpeza
+    For Each cell In rng
+        If Not IsEmpty(cell.Value) And Not IsError(cell.Value) Then
+            cell.Value = UCase(Application.WorksheetFunction.Trim(CStr(cell.Value)))
+        End If
+    Next cell
+    
+    MsgBox "Texto padronizado com sucesso!", vbInformation
+End Sub
