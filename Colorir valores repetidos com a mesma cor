@@ -1,0 +1,46 @@
+Option Explicit
+
+Sub ColorirValoresRepetidos()
+    Dim rng As Range, cell As Range
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    Dim corBase As Long
+    corBase = RGB(100, 100, 255) ' Cor base para cálculo de variações
+    
+    ' Obter seleção do usuário
+    On Error Resume Next
+    Set rng = Application.InputBox( _
+        Title:="Colorir Valores Iguais", _
+        Prompt:="Selecione o intervalo onde deseja colorir valores repetidos:", _
+        Type:=8)
+    On Error GoTo 0
+    
+    If rng Is Nothing Then Exit Sub
+    
+    Dim i As Long
+    i = 0
+    
+    ' Limpa cores anteriores
+    rng.Interior.ColorIndex = xlNone
+    
+    ' Percorre cada célula
+    For Each cell In rng
+        If Not IsEmpty(cell) And Not IsError(cell) Then
+            Dim chave As String
+            chave = CStr(cell.Value)
+            
+            ' Se o valor ainda não tem cor associada, cria uma
+            If Not dict.exists(chave) Then
+                ' Gera uma cor automaticamente com base no índice
+                dict.Add chave, RGB((50 + 77 * i) Mod 256, (100 + 53 * i) Mod 256, (150 + 29 * i) Mod 256)
+                i = i + 1
+            End If
+            
+            ' Aplica a cor correspondente
+            cell.Interior.Color = dict(chave)
+        End If
+    Next cell
+    
+    MsgBox "Coloração concluída para " & dict.Count & " grupo(s) distintos.", vbInformation
+End Sub
