@@ -1,0 +1,56 @@
+Option Explicit
+
+Sub ColorirValoresRepetidos()
+    Dim rng As Range, cell As Range
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' Solicita a seleção do intervalo com uma caixa de diálogo
+    On Error Resume Next
+    Set rng = Application.InputBox( _
+        Title:="Colorir Valores Iguais", _
+        Prompt:="Selecione o intervalo com os valores:", _
+        Type:=8) ' Tipo 8 permite selecionar um intervalo
+    On Error GoTo 0
+    
+    If rng Is Nothing Then
+        MsgBox "Nenhuma seleção feita. Macro cancelada.", vbExclamation
+        Exit Sub
+    End If
+    
+    Dim i As Long
+    i = 0
+    
+    ' Limpa cores anteriores no intervalo
+    rng.Interior.ColorIndex = xlNone
+    
+    ' Percorre cada célula no intervalo
+    For Each cell In rng
+        If Not IsEmpty(cell.Value) And Not IsError(cell.Value) Then
+            Dim chave As String
+            chave = Trim(CStr(cell.Value)) ' Normaliza espaços e tipo
+            
+            ' Se a chave (valor da célula) ainda não foi adicionada no dicionário, cria uma nova cor
+            If Not dict.exists(chave) Then
+                dict.Add chave, PastelColor(i)
+                i = i + 1
+            End If
+            
+            ' Aplica a cor ao fundo da célula
+            cell.Interior.Color = dict(chave)
+        End If
+    Next cell
+    
+    ' Exibe a contagem correta de valores distintos
+    MsgBox "Coloração concluída! Foram aplicadas cores para " & dict.Count & " grupo(s) distinto(s).", vbInformation
+End Sub
+
+Function PastelColor(index As Long) As Long
+    ' Gera tons pastel suaves e visíveis para diferentes valores
+    Dim r As Long, g As Long, b As Long
+    r = 180 + ((index * 40) Mod 76) ' 180–255
+    g = 180 + ((index * 70) Mod 76)
+    b = 180 + ((index * 60) Mod 76)
+    
+    PastelColor = RGB(r, g, b)
+End Function
