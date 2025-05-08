@@ -1,0 +1,150 @@
+Imports Inventor.ViewOrientationTypeEnum
+Imports Inventor.DrawingViewStyleEnum
+Imports System.IO
+
+Private Sub Main()
+    CriarDesenhosAPartirDaEstruturaBOM(ThisDoc.Document)
+End Sub
+
+Private Sub CriarDesenhosAPartirDaEstruturaBOM(ByVal oDoc As Inventor.Document)
+    ' Caminho do template - ajuste conforme necessário para seu idioma/instalação
+    Dim caminhoTemplate As String = "O:\Doma Projetos\01 - PROJETOS\02 - CLIENTES\JBS - GARIBALDI-RS\VACINADORA - SIRIUSVAC CASP86-R00\CENTRAL BOMB\00 - DETALHAMENTO\Desenho1.idw"
+    
+    ' Corrigido: uso de System.IO.File para evitar ambiguidade com Inventor.File
+    If Not System.IO.File.Exists(caminhoTemplate) Then
+        MsgBox("O arquivo de template não foi encontrado: " & caminhoTemplate, vbExclamation)
+        Exit Sub
+    End If
+
+    Dim criarDesenhoUnico As Boolean = True
+    Dim oDocumentoDesenho As DrawingDocument
+    Dim oFolha As Sheet
+    Dim oVistaBase As DrawingView
+    Dim oVista2 As DrawingView
+    Dim oVista3 As DrawingView
+    Dim oVista4 As DrawingView
+
+    Dim dwgQuery As Integer = MsgBox("Deseja criar desenhos a partir da ESTRUTURA BOM?", vbYesNo, "Seleção de Desenho")
+
+    If dwgQuery = vbYes Then
+        If oDoc.DocumentType = Inventor.DocumentTypeEnum.kAssemblyDocumentObject Then
+            Dim oConjunto As AssemblyDocument = CType(oDoc, AssemblyDocument)
+            Dim oBOM As BOM = oConjunto.ComponentDefinition.BOM
+            oBOM.StructuredViewEnabled = True
+
+            ' Corrigido: localização neutra usando ViewType
+            Dim oBOMView As BOMView = Nothing
+            For Each view As BOMView In oBOM.BOMViews
+                If View.ViewType = BOMViewTypeEnum.kStructuredBOMViewType Then
+                    oBOMView = View
+                    Exit For
+                End If
+            Next
+
+            If oBOMView Is Nothing Then
+                MsgBox("Visualização BOM estruturada não encontrada.", vbExclamation)
+                Exit Sub
+            End If
+
+            If criarDesenhoUnico Then
+                oDocumentoDesenho = ThisApplication.Documents.Add( _
+                    DocumentTypeEnum.kDrawingDocumentObject, _
+                    TemplateFileName:=caminhoTemplate, _
+                    CreateVisible:=True)
+            End If
+
+            Dim folhaModelo As Sheet = oDocumentoDesenho.Sheets.Item(1)
+
+            For Each oBOMRow As BOMRow In oBOMView.BOMRows
+                If oBOMRow.ComponentDefinitions Is Nothing Then Continue For
+
+                For Each compDef As ComponentDefinition In oBOMRow.ComponentDefinitions
+                    If compDef.Document Is Nothing Then Continue For
+                    If compDef.Document.FullFileName.Contains("Content Center") Then Continue For
+                    If compDef.BOMStructure <> BOMStructureEnum.kNormalBOMStructure Then Continue For
+
+                    ' Criar folha nova
+                    If criarDesenhoUnico Then
+                        Dim docTemporario As DrawingDocument = ThisApplication.Documents.Add(DocumentTypeEnum.kDrawingDocumentObject, , False)
+                        folhaModelo.CopyTo(docTemporario).CopyTo(oDocumentoDesenho)
+                        docTemporario.Close(True)
+
+                        oFolha = oDocumentoDesenho.Sheets.Item(oDocumentoDesenho.Sheets.Count)
+                        oFolha.Name = System.IO.Path.GetFileNameWithoutExtension(compDef.Document.FullFileName)
+                    Else
+                        oDocumentoDesenho = ThisApplication.Documents.Add( _
+                            DocumentTypeEnum.kDrawingDocumentObject, _
+                            TemplateFileName:=caminhoTemplate, _
+                            CreateVisible:=True)
+                        oFolha = oDocumentoDesenho.Sheets.Item(1)
+                    End If
+
+                    ' Calcular escala ideal
+                    Dim escalaAutomatica As Double = CalcularEscalaIdeal(compDef)
+
+                    ' Pontos centrais para inserção das vistas
+                    Dim centroX As Double = 20
+                    Dim centroY As Double = 15
+
+                    Dim oPontoBase = ThisApplication.TransientGeometry.CreatePoint2d(centroX, centroY)
+                    Dim oPontoLat = ThisApplication.TransientGeometry.CreatePoint2d(centroX + 8, centroY)
+                    Dim oPontoSup = ThisApplication.TransientGeometry.CreatePoint2d(centroX, centroY - 8)
+                    Dim oPontoIso = ThisApplication.TransientGeometry.CreatePoint2d(centroX + 8, centroY - 8)
+
+                    ' Criação das vistas com tratamento de erro
+                    Try
+                        oVistaBase = oFolha.DrawingViews.AddBaseView( _
+                            compDef.Document, oPontoBase, escalaAutomatica, _
+                            kFrontViewOrientation, DrawingViewStyleEnum.kHiddenLineRemovedDrawingViewStyle)
+
+                        oVista2 = oFolha.DrawingViews.AddProjectedView(oVistaBase, oPontoLat, DrawingViewStyleEnum.kFromBaseDrawingViewStyle, escalaAutomatica)
+                        oVista3 = oFolha.DrawingViews.AddProjectedView(oVistaBase, oPontoSup, DrawingViewStyleEnum.kFromBaseDrawingViewStyle, escalaAutomatica)
+                        oVista4 = oFolha.DrawingViews.AddProjectedView(oVistaBase, oPontoIso, DrawingViewStyleEnum.kFromBaseDrawingViewStyle, escalaAutomatica)
+
+                    Catch ex As Exception
+                        MsgBox("Erro ao criar vistas para " & compDef.Document.DisplayName & ": " & ex.Message)
+                        Continue For
+                    End Try
+                Next
+            Next
+
+            MsgBox("Criação de desenhos concluída com sucesso!", vbInformation, "Processo Finalizado")
+        End If
+    End If
+End Sub
+
+' Função para calcular automaticamente a escala ideal
+Private Function CalcularEscalaIdeal(compDef As ComponentDefinition) As Double
+    Dim oBox As Box = compDef.RangeBox
+
+    Dim largura As Double = Math.Abs(oBox.MaxPoint.X - oBox.MinPoint.X)
+    Dim altura As Double = Math.Abs(oBox.MaxPoint.Y - oBox.MinPoint.Y)
+    Dim profundidade As Double = Math.Abs(oBox.MaxPoint.Z - oBox.MinPoint.Z)
+
+    ' Maior dimensão
+    Dim tamanhoMaximo As Double = Math.Max(largura, Math.Max(altura, profundidade))
+
+    ' Conversão de cm para mm (ajuste conforme unidade do seu modelo)
+    tamanhoMaximo = tamanhoMaximo * 10
+
+    ' Área útil da folha para o modelo (em mm)
+    Dim areaUtil As Double = 180 ' Exemplo de largura útil
+
+    ' Calcular escala
+    Dim escala As Double = areaUtil / tamanhoMaximo
+
+    ' Ajustar para escalas padrão
+    If escala >= 1 Then
+        escala = 1 ' 1:1
+    ElseIf escala >= 0.5 Then
+        escala = 0.5 ' 1:2
+    ElseIf escala >= 0.2 Then
+        escala = 0.2 ' 1:5
+    ElseIf escala >= 0.1 Then
+        escala = 0.1 ' 1:10
+    Else
+        escala = 0.05 ' 1:20
+    End If
+
+    Return escala
+End Function
