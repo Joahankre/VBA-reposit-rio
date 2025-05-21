@@ -1,0 +1,162 @@
+Sub Main()
+    ' Verifica se o documento ativo é um desenho
+    If ThisApplication.ActiveDocumentType <> DocumentTypeEnum.kDrawingDocumentObject Then
+        MessageBox.Show("Abra um desenho (.idw) antes de rodar esta regra.", "Erro")
+        Return
+    End If
+
+    Dim oDrawDoc As DrawingDocument = ThisApplication.ActiveDocument
+    Dim oSheet As Sheet = oDrawDoc.ActiveSheet
+
+    If oSheet.DrawingViews.Count = 0 Then
+        MessageBox.Show("A folha ativa não contém vistas.", "Erro")
+        Return
+    End If
+
+    Dim oView As DrawingView = oSheet.DrawingViews.Item(1)
+    Dim oRefDoc As Document
+
+    Try
+        oRefDoc = oView.ReferencedDocumentDescriptor.ReferencedDocument
+    Catch ex As Exception
+        MessageBox.Show("Erro ao acessar o modelo referenciado: " & ex.Message, "Erro")
+        Return
+    End Try
+
+    ' Acessa os conjuntos de propriedades
+    Dim summaryProps = oRefDoc.PropertySets.Item("Inventor Summary Information")
+    Dim customProps = oRefDoc.PropertySets.Item("Inventor User Defined Properties")
+    Dim designProps = oRefDoc.PropertySets.Item("Design Tracking Properties")
+
+    ' Obtém valores de propriedades
+    Dim titulo = GetPropertyValue(summaryProps, "Title")
+    Dim subtitulo = GetPropertyValue(summaryProps, "Subject")
+    Dim autor = GetPropertyValue(summaryProps, "Author")
+    Dim material = GetPropertyValue(customProps, "PN2")
+    Dim acabamento = GetPropertyValue(customProps, "ACABAMENTO")
+    Dim categoria = GetPropertyValue(customProps, "CATEGORIA")
+    Dim codigo = GetPropertyValue(designProps, "Part Number")
+    Dim stockNumber = GetPropertyValue(designProps, "Stock Number")
+    Dim descricao = GetPropertyValue(designProps, "Description")
+    Dim caminhoArquivo = oRefDoc.FullFileName
+    Dim caminhoPasta = IO.Path.GetDirectoryName(caminhoArquivo)
+    Dim nomeArquivoSemExtensao = IO.Path.GetFileNameWithoutExtension(caminhoArquivo)
+
+    ' Cria o formulário
+    Dim painel As New Form With {
+        .Text = "Editar iProperties",
+        .Width = 850,
+        .Height = 920,
+        .StartPosition = FormStartPosition.CenterScreen
+    }
+
+    Dim larguraCaixa = 800, margemEsquerda = 20, linha = 10, altura = 35
+
+    ' Campos informativos
+    AdicionarLabelETextBox(painel, "Caminho da Pasta:", caminhoPasta, linha, larguraCaixa, margemEsquerda, True)
+    AdicionarLabelETextBox(painel, "Nome do Arquivo:", nomeArquivoSemExtensao, linha, larguraCaixa, margemEsquerda, True)
+
+    ' Campos editáveis
+    Dim txtTitulo = AdicionarLabelETextBox(painel, "Título:", titulo, linha, larguraCaixa, margemEsquerda)
+    Dim txtSubtitulo = AdicionarLabelETextBox(painel, "Assunto:", subtitulo, linha, larguraCaixa, margemEsquerda)
+    Dim txtDescricao = AdicionarLabelETextBox(painel, "Descrição:", descricao, linha, larguraCaixa, margemEsquerda)
+    Dim txtCodigo = AdicionarLabelETextBox(painel, "Número da Peça:", codigo, linha, larguraCaixa, margemEsquerda)
+    Dim txtEstoque = AdicionarLabelETextBox(painel, "Número de Estoque:", stockNumber, linha, larguraCaixa, margemEsquerda)
+    Dim txtAutor = AdicionarLabelETextBox(painel, "Autor:", autor, linha, larguraCaixa, margemEsquerda)
+
+    ' Combobox - PN2
+    painel.Controls.Add(NovaLabel("PN2:", linha, margemEsquerda)) : linha += altura
+    Dim cboMaterial As New ComboBox With {
+        .Top = linha, .Left = margemEsquerda, .Width = larguraCaixa, .DropDownStyle = ComboBoxStyle.DropDownList
+    }
+    cboMaterial.Items.AddRange(New String() {"=<Part Number>", "=<Stock Number>", "=<Description>", "NDA"})
+    cboMaterial.SelectedItem = If(material <> "", material, cboMaterial.Items(0))
+    painel.Controls.Add(cboMaterial)
+    linha += altura
+
+    ' Combobox - Acabamento
+    painel.Controls.Add(NovaLabel("Acabamento:", linha, margemEsquerda)) : linha += altura
+    Dim cboAcabamento As New ComboBox With {
+        .Top = linha, .Left = margemEsquerda, .Width = larguraCaixa, .DropDownStyle = ComboBoxStyle.DropDownList
+    }
+    cboAcabamento.Items.AddRange(New String() {"ANODIZADO CLARO", "ANODIZADO ESCURO", "TREME-TREME", "JATEADO", "USINADO", "POLIDO"})
+    cboAcabamento.SelectedItem = If(acabamento <> "", acabamento, cboAcabamento.Items(0))
+    painel.Controls.Add(cboAcabamento)
+    linha += altura
+
+    ' Combobox - Categoria
+    painel.Controls.Add(NovaLabel("Categoria:", linha, margemEsquerda)) : linha += altura
+    Dim cboCategoria As New ComboBox With {
+        .Top = linha, .Left = margemEsquerda, .Width = larguraCaixa, .DropDownStyle = ComboBoxStyle.DropDownList
+    }
+    cboCategoria.Items.AddRange(New String() {
+        "00 - PR - PRODUCAO", "01 - MO - MONTAGEM", "02 - CT - CORTE TUBO", "03 - SF - SERRA FITA",
+        "04 - LA - LASER", "05 - LD - LASER DOBRA", "06 - AL - USINAGEM ALUMINIO GERAL LIGA",
+        "06 - AF - USINAGEM ALUMINIO EXTERNO FRIMEC", "06 - AW - USINAGEM ALUMINIO EXTERNO WELD VISION",
+        "07 - PV - USINAGEM PLASTICO EXTERNO VINTER", "07 - PF - USINAGEM PLASTICO EXTERNO FRIMEC",
+        "08 - PO - USINAGEM POLICARBONATO EXTERNO", "09 - US - USINAGEM LIGA",
+        "09 - UF - USINAGEM INOX EXTERNO NA FRIMEC", "10 - CO - COMERCIAL", "11 - CS - COMERCIAL SERRA FITA"
+    })
+    cboCategoria.SelectedItem = If(categoria <> "", categoria, cboCategoria.Items(0))
+    painel.Controls.Add(cboCategoria)
+    linha += altura + 10
+
+    ' Botão aplicar
+    Dim btnAplicar As New Button With {
+        .Text = "Aplicar", .Top = linha, .Left = margemEsquerda,
+        .Width = larguraCaixa, .Height = 30
+    }
+
+    AddHandler btnAplicar.Click, Sub()
+        summaryProps.Item("Title").Value = txtTitulo.Text
+        summaryProps.Item("Subject").Value = txtSubtitulo.Text
+        summaryProps.Item("Author").Value = txtAutor.Text
+        designProps.Item("Description").Value = txtDescricao.Text
+        designProps.Item("Part Number").Value = txtCodigo.Text
+        designProps.Item("Stock Number").Value = txtEstoque.Text
+
+        AtualizarOuAdicionar(customProps, "PN2", cboMaterial.SelectedItem.ToString())
+        AtualizarOuAdicionar(customProps, "ACABAMENTO", cboAcabamento.SelectedItem.ToString())
+        AtualizarOuAdicionar(customProps, "CATEGORIA", cboCategoria.SelectedItem.ToString())
+
+        MessageBox.Show("iProperties atualizadas com sucesso!", "Sucesso")
+        painel.Close()
+    End Sub
+
+    painel.Controls.Add(btnAplicar)
+    painel.ShowDialog()
+End Sub
+
+' Cria e adiciona uma Label
+Function NovaLabel(texto As String, y As Integer, margem As Integer) As Label
+    Return New Label With {.Text = texto, .Top = y, .Left = margem, .AutoSize = True}
+End Function
+
+' Cria uma TextBox
+Function NovaTextBox(valor As String, y As Integer, largura As Integer, margem As Integer) As System.Windows.Forms.TextBox
+    Return New System.Windows.Forms.TextBox With {.Text = valor, .Top = y, .Left = margem, .Width = largura}
+End Function
+
+' Cria e adiciona Label + TextBox ao painel
+Function AdicionarLabelETextBox(painel As Form, labelTexto As String, valor As String, ByRef linha As Integer, largura As Integer, margem As Integer, Optional somenteLeitura As Boolean = False) As System.Windows.Forms.TextBox
+    painel.Controls.Add(NovaLabel(labelTexto, linha, margem)) : linha += 35
+    Dim txt = NovaTextBox(valor, linha, largura, margem)
+    txt.ReadOnly = somenteLeitura
+    painel.Controls.Add(txt)
+    linha += 35
+    Return txt
+End Function
+
+' Recupera valor de uma iProperty
+Function GetPropertyValue(props As PropertySet, propName As String) As String
+    Try
+        Return props.Item(propName).Value.ToString()
+    Catch
+        Return ""
+    End Try
+End Function
+
+' Atualiza ou adiciona uma propriedade personalizada
+Sub AtualizarOuAdicionar(props As PropertySet, propName As String, value As String)
+    Try : props.Item(propName).Value = value : Catch : props.Add(value, propName) : End Try
+End Sub
