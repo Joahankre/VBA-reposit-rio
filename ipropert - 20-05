@@ -35,6 +35,7 @@ Sub Main()
     Dim material = GetPropertyValue(customProps, "PN2")
     Dim acabamento = GetPropertyValue(customProps, "ACABAMENTO")
     Dim categoria = GetPropertyValue(customProps, "CATEGORIA")
+	Dim qtdePersonalizada = GetPropertyValue(customProps, "QTDE Personalizada")
     Dim codigo = GetPropertyValue(designProps, "Part Number")
     Dim stockNumber = GetPropertyValue(designProps, "Stock Number")
     Dim descricao = GetPropertyValue(designProps, "Description")
@@ -46,7 +47,7 @@ Sub Main()
     Dim painel As New Form With {
         .Text = "Editar iProperties",
         .Width = 850,
-        .Height = 920,
+        .Height = 950,
         .StartPosition = FormStartPosition.CenterScreen
     }
 
@@ -58,18 +59,27 @@ Sub Main()
 
     ' Campos editáveis
     Dim txtTitulo = AdicionarLabelETextBox(painel, "Título:", titulo, linha, larguraCaixa, margemEsquerda)
-    Dim txtSubtitulo = AdicionarLabelETextBox(painel, "Assunto:", subtitulo, linha, larguraCaixa, margemEsquerda)
     Dim txtDescricao = AdicionarLabelETextBox(painel, "Descrição:", descricao, linha, larguraCaixa, margemEsquerda)
     Dim txtCodigo = AdicionarLabelETextBox(painel, "Número da Peça:", codigo, linha, larguraCaixa, margemEsquerda)
     Dim txtEstoque = AdicionarLabelETextBox(painel, "Número de Estoque:", stockNumber, linha, larguraCaixa, margemEsquerda)
     Dim txtAutor = AdicionarLabelETextBox(painel, "Autor:", autor, linha, larguraCaixa, margemEsquerda)
+	Dim txtQtdePersonalizada = AdicionarLabelETextBox(painel, "QTDE Personalizada:", qtdePersonalizada, linha, larguraCaixa, margemEsquerda)
+	
+	' Combobox - Assunto
+	painel.Controls.Add(NovaLabel("Assunto:", linha, margemEsquerda)) : linha += altura
+	Dim cboSubtitulo As New ComboBox With {
+    .Top = linha, .Left = margemEsquerda, .Width = larguraCaixa, .DropDownStyle = ComboBoxStyle.DropDownList }
+	cboSubtitulo.Items.AddRange(New String() {"=<Part Number>", "=<Stock Number>", "=<Description>", "N/A" })
+	cboSubtitulo.SelectedItem = If (subtitulo <> "", subtitulo, cboSubtitulo.Items(0))
+	painel.Controls.Add(cboSubtitulo)
+	linha += altura
 
     ' Combobox - PN2
     painel.Controls.Add(NovaLabel("PN2:", linha, margemEsquerda)) : linha += altura
     Dim cboMaterial As New ComboBox With {
         .Top = linha, .Left = margemEsquerda, .Width = larguraCaixa, .DropDownStyle = ComboBoxStyle.DropDownList
     }
-    cboMaterial.Items.AddRange(New String() {"=<Part Number>", "=<Stock Number>", "=<Description>", "NDA"})
+    cboMaterial.Items.AddRange(New String() {"=<Part Number>", "=<Stock Number>", "=<Description>", "N/A"})
     cboMaterial.SelectedItem = If(material <> "", material, cboMaterial.Items(0))
     painel.Controls.Add(cboMaterial)
     linha += altura
@@ -109,13 +119,14 @@ Sub Main()
 
     AddHandler btnAplicar.Click, Sub()
         summaryProps.Item("Title").Value = txtTitulo.Text
-        summaryProps.Item("Subject").Value = txtSubtitulo.Text
+		summaryProps.Item("Subject").Value = cboSubtitulo.SelectedItem.ToString()
         summaryProps.Item("Author").Value = txtAutor.Text
         designProps.Item("Description").Value = txtDescricao.Text
         designProps.Item("Part Number").Value = txtCodigo.Text
         designProps.Item("Stock Number").Value = txtEstoque.Text
-
-        AtualizarOuAdicionar(customProps, "PN2", cboMaterial.SelectedItem.ToString())
+		
+		AtualizarOuAdicionar(customProps, "QTDE Personalizada", txtQtdePersonalizada.Text)
+		AtualizarOuAdicionar(customProps, "PN2", cboMaterial.SelectedItem.ToString())
         AtualizarOuAdicionar(customProps, "ACABAMENTO", cboAcabamento.SelectedItem.ToString())
         AtualizarOuAdicionar(customProps, "CATEGORIA", cboCategoria.SelectedItem.ToString())
 
