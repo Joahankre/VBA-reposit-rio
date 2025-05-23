@@ -1,0 +1,90 @@
+Sub Main()
+
+    ' Imports necessários já implícitos no iLogic para usar Forms e FileSystemObject
+
+    ' Criar formulário
+    Dim frm As New System.Windows.Forms.Form
+    frm.Text = "Renomear Arquivos por Prefixo"
+    frm.Width = 600
+    frm.Height = 300
+    frm.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+
+    ' Controles do formulário
+    Dim lblFolder As New System.Windows.Forms.Label With {.Text = "Pasta:", .Left = 10, .Top = 20, .AutoSize = True}
+    Dim txtFolder As New System.Windows.Forms.TextBox With {.Left = 120, .Top = 15, .Width = 400}
+    Dim btnBrowse As New System.Windows.Forms.Button With {.Text = "Procurar", .Left = 530, .Top = 15, .Width = 50}
+
+    Dim lblOldPrefix As New System.Windows.Forms.Label With {.Text = "Prefixo Antigo:", .Left = 10, .Top = 60, .AutoSize = True}
+    Dim txtOldPrefix As New System.Windows.Forms.TextBox With {.Left = 120, .Top = 55, .Width = 200}
+
+    Dim lblNewPrefix As New System.Windows.Forms.Label With {.Text = "Novo Prefixo:", .Left = 10, .Top = 100, .AutoSize = True}
+    Dim txtNewPrefix As New System.Windows.Forms.TextBox With {.Left = 120, .Top = 95, .Width = 200}
+
+    Dim btnApply As New System.Windows.Forms.Button With {
+        .Text = "Renomear Arquivos",
+        .Left = 200,
+        .Top = 140,
+        .Width = 200,
+        .Height = 40
+    }
+
+    ' Adicionar ao formulário
+    frm.Controls.Add(lblFolder)
+    frm.Controls.Add(txtFolder)
+    frm.Controls.Add(btnBrowse)
+    frm.Controls.Add(lblOldPrefix)
+    frm.Controls.Add(txtOldPrefix)
+    frm.Controls.Add(lblNewPrefix)
+    frm.Controls.Add(txtNewPrefix)
+    frm.Controls.Add(btnApply)
+
+    ' Evento para selecionar pasta
+    AddHandler btnBrowse.Click, Sub()
+        Dim folderDlg As New System.Windows.Forms.FolderBrowserDialog
+        If folderDlg.ShowDialog() = System.Windows.Forms.DialogResult.OK Then
+            txtFolder.Text = folderDlg.SelectedPath
+        End If
+    End Sub
+
+    ' Evento do botão Aplicar
+    AddHandler btnApply.Click, Sub()
+        Dim folderPath As String = txtFolder.Text
+        Dim oldPrefix As String = txtOldPrefix.Text
+        Dim newPrefix As String = txtNewPrefix.Text
+
+        If folderPath = "" Or oldPrefix = "" Or newPrefix = "" Then
+            System.Windows.Forms.MessageBox.Show("Preencha todos os campos.", "Atenção")
+            Return
+        End If
+
+        Dim fso As Object = CreateObject("Scripting.FileSystemObject")
+
+        If Not fso.FolderExists(folderPath) Then
+            System.Windows.Forms.MessageBox.Show("A pasta especificada não existe.", "Erro")
+            Return
+        End If
+
+        Dim folder = fso.GetFolder(folderPath)
+        Dim count = 0
+        Dim log As String = ""
+
+        For Each file In folder.Files
+            Dim fileName = fso.GetFileName(File.Path)
+            If Left(fileName, Len(oldPrefix)) = oldPrefix Then
+                Dim newName = fso.BuildPath(folderPath, newPrefix & Mid(fileName, Len(oldPrefix) + 1))
+                'Name File.Path As newName
+                log &= "Renomeado: " & fileName & " → " & fso.GetFileName(newName) & vbCrLf
+                count += 1
+            Else
+                log &= "Ignorado: " & fileName & vbCrLf
+            End If
+        Next
+
+        System.Windows.Forms.MessageBox.Show(count & " arquivo(s) renomeado(s)." & vbCrLf & vbCrLf & log, "Resultado")
+        frm.Close()
+    End Sub
+
+    ' Mostrar formulário
+    frm.ShowDialog()
+
+End Sub
