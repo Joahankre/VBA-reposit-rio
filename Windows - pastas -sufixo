@@ -1,0 +1,42 @@
+@echo off
+setlocal enabledelayedexpansion
+
+set parteEscolhida=4
+
+for %%F in (*.*) do (
+    set "arquivoCompleto=%%F"
+    set "nomeSemExtensao=%%~nF"
+    call :processar "%%F" "%%~nF"
+)
+
+echo.
+echo Organização concluída.
+pause
+exit /b
+
+:processar
+set "arquivoCompleto=%~1"
+set "nomeSemExtensao=%~2"
+
+for /f "tokens=1-6 delims=-" %%A in ("%nomeSemExtensao%") do (
+    set "parte1=%%A"
+    set "parte2=%%B"
+    set "parte3=%%C"
+    set "parte4=%%D"
+    set "parte5=%%E"
+    set "parte6=%%F"
+)
+
+set "sufixo="
+for %%I in (1 2 3 4 5 6) do (
+    if "!parteEscolhida!"=="%%I" (
+        set "sufixo=!parte%%I!"
+    )
+)
+
+if not defined sufixo exit /b
+
+set "pastaDestino=-!sufixo!"
+if not exist "!pastaDestino!" mkdir "!pastaDestino!"
+move "!arquivoCompleto!" "!pastaDestino!\" >nul
+exit /b
